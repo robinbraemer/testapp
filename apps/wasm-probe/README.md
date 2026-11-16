@@ -3,7 +3,7 @@
 A minimal Next.js App Router function with no filesystem, native addons, shell,
 database, or outgoing network calls. It is a separate app from the Bun/Node testapp.
 
-- `GET /` or `GET /api/sum?a=2&b=3` returns a sum and module-lifetime observations.
+- `GET /api/sum?a=2&b=3` returns a sum and module-lifetime observations.
 - Invalid integer operands return HTTP 400.
 - `bun install`, `bun run test`, `bun run build`, `bun run start`.
 
