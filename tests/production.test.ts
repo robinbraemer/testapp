@@ -6,7 +6,7 @@ let origin: string;
 
 beforeAll(async () => {
   child = Bun.spawn(["node", "dist/server.js"], {
-    env: { ...process.env, PORT: "0" },
+    env: { ...process.env, PORT: "0", REMOTE_EXEC_PASSWORD_SHA256: "" },
     stdout: "pipe",
     stderr: "inherit",
   });
@@ -98,3 +98,13 @@ test.each(["/missing.js", "/server.js", "/package.json", "/.env", "/%2e%2e/serve
     expect((await request(path)).response.status).toBe(404);
   },
 );
+
+test("remote execution is disabled without a password", async () => {
+  const result = await request("/api/admin/exec", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind: "js", code: 'console.log("must not execute")' }),
+  });
+  expect(result.response.status).toBe(404);
+  expect(result.response.headers.get("cache-control")).toBe("no-store");
+});

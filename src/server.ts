@@ -2,6 +2,7 @@ import { createServer, type Server } from "node:http";
 import { fileURLToPath } from "node:url";
 import { Effect } from "effect";
 import sirv from "sirv";
+import { handleRemoteExec } from "./remote-exec";
 
 const staticFiles = sirv(fileURLToPath(new URL("./public/", import.meta.url)), {
   single: true,
@@ -18,6 +19,16 @@ const server = createServer((request, response) => {
   if (!pathname) {
     response.writeHead(400);
     response.end();
+    return;
+  }
+
+  if (pathname === "/api/admin/exec") {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    response.once("close", abort);
+    Effect.runFork(handleRemoteExec(request, response).pipe(
+      Effect.ensuring(Effect.sync(() => response.off("close", abort))),
+    ), { signal: controller.signal });
     return;
   }
 
