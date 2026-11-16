@@ -11,12 +11,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "effect": "4.1.4",
     "next": "^16.0.0",
     "react": "^19",
     "react-dom": "^19"
   },
   "devDependencies": {
+    "effect": "4.1.4",
     "@types/bun": "latest",
     "@types/node": "^22",
     "@types/react": "^19",
