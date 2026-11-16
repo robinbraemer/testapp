@@ -3,6 +3,7 @@ import plugin from "bun-plugin-tailwind";
 import { existsSync } from "fs";
 import { rm } from "fs/promises";
 import path from "path";
+import { Effect } from "effect";
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(`
@@ -33,7 +34,7 @@ Example:
   process.exit(0);
 }
 
-const toCamelCase = (str: string): string => str.replace(/-([a-z])/g, g => g[1].toUpperCase());
+const toCamelCase = (str: string): string => str.replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase());
 
 const parseValue = (value: string): any => {
   if (value === "true") return true;
@@ -48,7 +49,7 @@ const parseValue = (value: string): any => {
 };
 
 function parseArgs(): Partial<Bun.BuildConfig> {
-  const config: Partial<Bun.BuildConfig> = {};
+  const config: Record<string, unknown> = {};
   const args = process.argv.slice(2);
 
   for (let i = 0; i < args.length; i++) {
@@ -82,14 +83,18 @@ function parseArgs(): Partial<Bun.BuildConfig> {
 
     if (key.includes(".")) {
       const [parentKey, childKey] = key.split(".");
-      config[parentKey] = config[parentKey] || {};
-      config[parentKey][childKey] = parseValue(value);
+      if (!parentKey || !childKey) continue;
+      const parent = config[parentKey];
+      config[parentKey] = {
+        ...(typeof parent === "object" && parent !== null ? parent : {}),
+        [childKey]: parseValue(value),
+      };
     } else {
       config[key] = parseValue(value);
     }
   }
 
-  return config;
+  return config as Partial<Bun.BuildConfig>;
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -124,7 +129,6 @@ console.log(`📄 Found ${entrypoints.length} HTML ${entrypoints.length === 1 ? 
 
 const result = await Bun.build({
   entrypoints,
-  outdir,
   plugins: [plugin],
   minify: true,
   target: "browser",
@@ -133,11 +137,21 @@ const result = await Bun.build({
     "process.env.NODE_ENV": JSON.stringify("production"),
   },
   ...cliConfig,
+  outdir: path.join(outdir, "public"),
 });
+
+const server = await Effect.runPromise(
+  Effect.tryPromise(() => Bun.build({
+    entrypoints: ["src/server.ts"],
+    outdir,
+    target: "node",
+    minify: true,
+  })),
+);
 
 const end = performance.now();
 
-const outputTable = result.outputs.map(output => ({
+const outputTable = [...result.outputs, ...server.outputs].map(output => ({
   File: path.relative(process.cwd(), output.path),
   Type: output.kind,
   Size: formatFileSize(output.size),

@@ -7,18 +7,23 @@ WORKDIR /app
 # Install dependencies first to leverage Docker layer caching.
 FROM base AS deps
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --production
+RUN bun install --frozen-lockfile
 
-# Final runtime image.
-FROM base AS release
+FROM deps AS build
+COPY . .
+RUN bun run build
+
+# Production uses the same prebuilt Node entry point as LILY.
+FROM node:22-alpine AS release
+WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY --from=build /app/dist ./dist
+COPY package.json ./
 
 # Run as the non-root user provided by the official image.
-USER bun
+USER node
 
 EXPOSE 3000
-CMD ["bun", "src/index.ts"]
+CMD ["node", "dist/server.js"]
